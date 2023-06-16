@@ -81,40 +81,52 @@ async function main() {
 
 const question = promisify(rl.question).bind(rl);
 
-async function newLogin() {
-  let options = {};
-  options.instance = await question("Please enter an instance you want to log into (eg. lemmy.ml, lemmy.world, beehaw.org, etc.):\n");
-  options.username = await question("Please enter your username:\n");
-  options.password = await question("Please enter your password:\n");
+const writeFile = promisify(fs.writeFile);
+const readFile = promisify(fs.readFile);
+const removeFile = promisify(fs.rm);
 
-  let remember = await question("Would you like me to remember your login? (y/n)\n");
-  let nos = ["yes", "y"];
-  if (nos.some((char) => char.toLowerCase() === remember.toLowerCase())) {
-    let jsonData = JSON.stringify(options, null, 2);
-    await fs.promises.writeFile("login.json", jsonData);
+async function askQuestion(questionText) {
+  return await question(questionText + "\n");
+}
+
+async function newLogin() {
+  const options = {};
+  options.instance = await askQuestion("Please enter an instance you want to log into (eg. lemmy.ml, lemmy.world, beehaw.org, etc.):");
+  options.username = await askQuestion("Please enter your username:");
+  options.password = await askQuestion("Please enter your password:");
+
+  const remember = await askQuestion("\x1b[33Would 3myou like me to remember your login?\x1b[33m \x1b[31m(y/n)\x1b[31m \x1b[0m");
+  const shouldRemember = remember.toLowerCase().startsWith("y");
+  if (shouldRemember) {
+    const jsonData = JSON.stringify(options, null, 2);
+    await writeFile("login.json", jsonData);
   }
 
-  options.comment = await question("What community would you like to search?\n");
-  options.community = await question("What comment would you like to search?\n");
+  options.comment = await askQuestion("What community would you like to search?");
+  options.community = await askQuestion("What comment would you like to search?");
 
   return options;
 }
 
 async function loggedIn() {
-  let loginBool = await question("It seems like there's already a login, would you like log in with that account? (y/n)\n");
-  let nos = ["no", "n"];
-  if (nos.some((char) => char.toLowerCase() === loginBool.toLowerCase())) {
-    let options = await newLogin();
-    return options;
+  const loginPrompt = await askQuestion('It seems like there\'s already a login, \x1b[33mwould you like to log in with that account?\x1b[33m \x1b[31m(y/n)\x1b[31m \x1b[0m\nTo log out, type "logout"');
+  const shouldLogin = loginPrompt.toLowerCase().startsWith("y");
+  const shouldLogout = loginPrompt.toLowerCase().includes("log");
+  if (shouldLogout) {
+    console.log("\x1b[1m\x1b[33mLogging out...\x1b[33m\x1b[1m \x1b[0m");
+    await removeFile("./login.json");
+    return newLogin();
   }
 
-  let login = await fs.promises.readFile("./login.json", "utf-8");
-  let loginJSON = JSON.parse(login);
-  loginJSON.comment = await question("What community would you like to search?\n");
-  loginJSON.community = await question("What comment would you like to search?\n");
-  return loginJSON;
+  if (shouldLogin) {
+    const login = await readFile("./login.json", "utf-8");
+    const loginJSON = JSON.parse(login);
+    loginJSON.comment = await askQuestion("What community would you like to search?");
+    loginJSON.community = await askQuestion("What comment would you like to search?");
+    return loginJSON;
+  }
+  return await newLogin();
 }
-
 async function getToken(baseURL, form) {
   try {
     var jwt = await fetch(`${baseURL}/user/login`, {
