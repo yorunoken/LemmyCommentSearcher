@@ -98,8 +98,8 @@ async function newLogin() {
     await writeFile("login.json", jsonData);
   }
 
-  options.comment = await askQuestion("What community would you like to search?\n");
-  options.community = await askQuestion("What comment would you like to search?\n");
+  options.community = await askQuestion("What community would you like to search?\n");
+  options.comment = await askQuestion("What comment would you like to search?\n");
 
   return options;
 }
@@ -117,8 +117,8 @@ async function loggedIn() {
   if (shouldLogin) {
     const login = await readFile("./login.json", "utf-8");
     const loginJSON = JSON.parse(login);
-    loginJSON.comment = await askQuestion("What community would you like to search?\n");
-    loginJSON.community = await askQuestion("What comment would you like to search?\n");
+    loginJSON.community = await askQuestion("What community would you like to search?\n");
+    loginJSON.comment = await askQuestion("What comment would you like to search?\n");
     return loginJSON;
   }
   return await newLogin();
