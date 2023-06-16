@@ -79,41 +79,37 @@ async function main() {
   }
 }
 
-const question = promisify(rl.question).bind(rl);
+const askQuestion = promisify(rl.question).bind(rl);
 
 const writeFile = promisify(fs.writeFile);
 const readFile = promisify(fs.readFile);
 const removeFile = promisify(fs.rm);
 
-async function askQuestion(questionText) {
-  return await question(questionText + "\n");
-}
-
 async function newLogin() {
   const options = {};
-  options.instance = await askQuestion("Please enter an instance you want to log into (eg. lemmy.ml, lemmy.world, beehaw.org, etc.):");
-  options.username = await askQuestion("Please enter your username:");
-  options.password = await askQuestion("Please enter your password:");
+  options.instance = await askQuestion("Please enter an instance you want to log into (eg. lemmy.ml, lemmy.world, beehaw.org, etc.):\n");
+  options.username = await askQuestion("Please enter your username:\n");
+  options.password = await askQuestion("Please enter your password:\n");
 
-  const remember = await askQuestion("\x1b[33Would 3myou like me to remember your login?\x1b[33m \x1b[31m(y/n)\x1b[31m \x1b[0m");
+  const remember = await askQuestion("\x1b[33Would 3myou like me to remember your login?\x1b[33m \x1b[31m(y/n)\x1b[31m \x1b[0m \n");
   const shouldRemember = remember.toLowerCase().startsWith("y");
   if (shouldRemember) {
     const jsonData = JSON.stringify(options, null, 2);
     await writeFile("login.json", jsonData);
   }
 
-  options.comment = await askQuestion("What community would you like to search?");
-  options.community = await askQuestion("What comment would you like to search?");
+  options.comment = await askQuestion("What community would you like to search?\n");
+  options.community = await askQuestion("What comment would you like to search?\n");
 
   return options;
 }
 
 async function loggedIn() {
-  const loginPrompt = await askQuestion('It seems like there\'s already a login, \x1b[33mwould you like to log in with that account?\x1b[33m \x1b[31m(y/n)\x1b[31m \x1b[0m\nTo log out, type "logout"');
+  const loginPrompt = await askQuestion('It seems like there\'s already a login, \x1b[33mwould you like to log in with that account?\x1b[33m \x1b[31m(y/n)\x1b[31m \x1b[0m\nTo log out, type "logout"\n');
   const shouldLogin = loginPrompt.toLowerCase().startsWith("y");
   const shouldLogout = loginPrompt.toLowerCase().includes("log");
   if (shouldLogout) {
-    console.log("\x1b[1m\x1b[33mLogging out...\x1b[33m\x1b[1m \x1b[0m");
+    console.log("\x1b[1m\x1b[33mLogging out...\x1b[33m\x1b[1m \x1b[0m \n");
     await removeFile("./login.json");
     return newLogin();
   }
@@ -121,8 +117,8 @@ async function loggedIn() {
   if (shouldLogin) {
     const login = await readFile("./login.json", "utf-8");
     const loginJSON = JSON.parse(login);
-    loginJSON.comment = await askQuestion("What community would you like to search?");
-    loginJSON.community = await askQuestion("What comment would you like to search?");
+    loginJSON.comment = await askQuestion("What community would you like to search?\n");
+    loginJSON.community = await askQuestion("What comment would you like to search?\n");
     return loginJSON;
   }
   return await newLogin();
