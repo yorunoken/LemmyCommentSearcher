@@ -1,4 +1,5 @@
 const readline = require("readline");
+const { promisify } = require("util");
 const fs = require("fs");
 
 const rl = readline.createInterface({
@@ -8,10 +9,11 @@ const rl = readline.createInterface({
 
 async function main() {
   if (fs.existsSync("./login.json")) {
-    var options = await askNewLogin();
+    var options = await loggedIn();
   } else {
-    var options = await getPrompts();
+    var options = await newLogin();
   }
+
   let instance = options.instance;
 
   let loginForm = {
@@ -20,7 +22,7 @@ async function main() {
   };
   const baseURL = `https://${instance}/api/v3`;
   console.log("Logging in...");
-  var auth = await getJwt(baseURL, loginForm);
+  var auth = await getToken(baseURL, loginForm);
   if (!auth || !auth.status) {
     console.log("ERROR: Invalid credentials were submitted, quitting.");
     if (fs.existsSync("./login.json")) {
@@ -77,63 +79,43 @@ async function main() {
   }
 }
 
-async function getPrompts() {
-  return new Promise((resolve) => {
-    let options = {};
-    rl.question("Please enter an instance you want to log into (eg. lemmy.ml, lemmy.world, beehaw.org, etc.):\n", (instance) => {
-      rl.question("Please enter your username:\n", (username) => {
-        rl.question("Please enter your password:\n", (password) => {
-          rl.question("Would you like me to remember your login? (y/n)\n", async (boolean) => {
-            rl.question("What community would you like to search?\n", async (community) => {
-              rl.question("What comment would you like to search?\n", async (comment) => {
-                options.instance = instance;
-                options.username = username;
-                options.password = password;
-                options.comment = comment;
-                options.community = comment;
+const question = promisify(rl.question).bind(rl);
 
-                let nos = ["yes", "y"];
-                if (nos.some((char) => char.toLowerCase() === boolean.toLowerCase())) {
-                  let jsonData = JSON.stringify(options, null, 2);
-                  await fs.promises.writeFile("login.json", jsonData);
-                }
-                resolve(options);
-              });
-            });
-          });
-        });
-      });
-    });
-  });
+async function newLogin() {
+  let options = {};
+  options.instance = await question("Please enter an instance you want to log into (eg. lemmy.ml, lemmy.world, beehaw.org, etc.):\n");
+  options.username = await question("Please enter your username:\n");
+  options.password = await question("Please enter your password:\n");
+
+  let remember = await question("Would you like me to remember your login? (y/n)\n");
+  let nos = ["yes", "y"];
+  if (nos.some((char) => char.toLowerCase() === remember.toLowerCase())) {
+    let jsonData = JSON.stringify(options, null, 2);
+    await fs.promises.writeFile("login.json", jsonData);
+  }
+
+  options.comment = await question("What community would you like to search?\n");
+  options.community = await question("What comment would you like to search?\n");
+
+  return options;
 }
 
-async function askNewLogin() {
-  return new Promise((resolve) => {
-    rl.question("It seems like there's already a login, would you like log in with that account? (y/n)\n", async (boolean) => {
-      let nos = ["no", "n"];
-      if (nos.some((char) => char.toLowerCase() === boolean.toLowerCase())) {
-        let options = await getPrompts();
-        resolve(options);
-        return;
-      }
-      rl.question("What community would you like to search in?\n", async (community) => {
-        rl.question("What comment would you like to search?\n", async (comment) => {
-          let yes = ["yes", "y"];
-          if (yes.some((char) => char.toLowerCase() === boolean.toLowerCase())) {
-            let login = await fs.promises.readFile("./login.json", "utf-8");
-            let loginJSON = JSON.parse(login);
-            loginJSON.comment = comment;
-            loginJSON.community = community;
-            resolve(loginJSON);
-            return;
-          }
-        });
-      });
-    });
-  });
+async function loggedIn() {
+  let loginBool = await question("It seems like there's already a login, would you like log in with that account? (y/n)\n");
+  let nos = ["no", "n"];
+  if (nos.some((char) => char.toLowerCase() === loginBool.toLowerCase())) {
+    let options = await newLogin();
+    return options;
+  }
+
+  let login = await fs.promises.readFile("./login.json", "utf-8");
+  let loginJSON = JSON.parse(login);
+  loginJSON.comment = await question("What community would you like to search?\n");
+  loginJSON.community = await question("What comment would you like to search?\n");
+  return loginJSON;
 }
 
-async function getJwt(baseURL, form) {
+async function getToken(baseURL, form) {
   try {
     var jwt = await fetch(`${baseURL}/user/login`, {
       method: "POST",
